@@ -74,7 +74,7 @@ class ParserModel(nn.Module):
         ### See the PDF for hints.
 
         # Declare W (embed_to_hidden_weight) as n_features x hidden_size matrix
-        W = torch.empty(self.n_features, self.hidden_size)
+        W = torch.empty(self.n_features * self.embed_size, self.hidden_size)
         nn.init.xavier_uniform_(W)
         self.embed_to_hidden_weight = nn.Parameter(W)
 
@@ -92,7 +92,7 @@ class ParserModel(nn.Module):
         self.hidden_to_logits_weight = nn.Parameter(U)
 
         # Declare b (hidden_to_logits_bias) as vector of 3 elements
-        b2 = torch.empty(self.hidden_size)
+        b2 = torch.empty(3)
         nn.init.uniform_(b2)
         self.hidden_to_logits_bias = nn.Parameter(b2)
 
@@ -174,6 +174,19 @@ class ParserModel(nn.Module):
         ###     Matrix product: https://pytorch.org/docs/stable/torch.html#torch.matmul
         ###     ReLU: https://pytorch.org/docs/stable/nn.html?highlight=relu#torch.nn.functional.relu
 
+        # First do embedding look up to get the embedding x
+        x = self.embedding_lookup(w)
+
+        # Then calculate h
+        xW = torch.matmul(x, self.embed_to_hidden_weight)
+        h = nn.ReLU()(xW + self.embed_to_hidden_bias)
+
+        # Then apply droput on the hidden layer
+        h = self.dropout(h)
+
+        # Finally callculate the logits (l or logits)
+        hU = torch.matmul(h, self.hidden_to_logits_weight)
+        logits = hU + self.hidden_to_logits_bias
 
         ### END YOUR CODE
         return logits
