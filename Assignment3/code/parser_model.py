@@ -73,8 +73,28 @@ class ParserModel(nn.Module):
         ### 
         ### See the PDF for hints.
 
+        # Declare W (embed_to_hidden_weight) as n_features x hidden_size matrix
+        W = torch.empty(self.n_features, self.hidden_size)
+        nn.init.xavier_uniform_(W)
+        self.embed_to_hidden_weight = nn.Parameter(W)
 
+        # Declare b (embed_to_hidden_bias) as vector of hidden_size elements
+        b1 = torch.empty(self.hidden_size)
+        nn.init.uniform_(b1)
+        self.embed_to_hidden_bias = nn.Parameter(b1)
 
+        # Construct the dropout layer
+        self.dropout = nn.Dropout()
+
+        # Declare U (hidden_to_logits_weight) as hidden x 3 matrix
+        U = torch.empty(self.hidden_size, 3)
+        nn.init.xavier_uniform_(U)
+        self.hidden_to_logits_weight = nn.Parameter(U)
+
+        # Declare b (hidden_to_logits_bias) as vector of 3 elements
+        b2 = torch.empty(self.hidden_size)
+        nn.init.uniform_(b2)
+        self.hidden_to_logits_bias = nn.Parameter(b2)
 
         ### END YOUR CODE
 
@@ -107,7 +127,17 @@ class ParserModel(nn.Module):
         ###     View: https://pytorch.org/docs/stable/tensors.html#torch.Tensor.view
         ###     Flatten: https://pytorch.org/docs/stable/generated/torch.flatten.html
 
+        # Get the batch size
+        batch_size = w.size()[0]
 
+        # first reshape w into a vector
+        w_as_vector = torch.reshape(w, (-1,))
+
+        # then select the embeddings using index from w
+        embeddings = torch.index_select(self.embeddings, 0, w_as_vector)
+
+        # finally reshape the embeddings to batch_size x (embed_size x features)
+        x = torch.reshape(embeddings, (batch_size, self.embed_size * self.n_features))
 
         ### END YOUR CODE
         return x
