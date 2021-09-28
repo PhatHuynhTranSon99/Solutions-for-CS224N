@@ -61,24 +61,27 @@ class PartialParse(object):
         ###         3. Right Arc
 
         if transition == "S":
-            # Get the first element of buffer
-            first_buffer_element = self.buffer.pop(0)
-            # Append element to stack
-            self.stack.append(first_buffer_element)
+            if len(self.buffer) > 0:
+                # Get the first element of buffer
+                first_buffer_element = self.buffer.pop(0)
+                # Append element to stack
+                self.stack.append(first_buffer_element)
         elif transition == "LA":
-            # Get second element in stack
-            second_stack_element = self.stack.pop(-2)
-            # Get the first element in stack
-            first_stack_element = self.stack[-1]
-            # Add dependency from first -> second
-            self.dependencies.append((first_stack_element, second_stack_element))
+            if len(self.stack) >= 2:
+                # Get second element in stack
+                second_stack_element = self.stack.pop(-2)
+                # Get the first element in stack
+                first_stack_element = self.stack[-1]
+                # Add dependency from first -> second
+                self.dependencies.append((first_stack_element, second_stack_element))
         elif transition == "RA":
-            # Get first element in stack
-            first_stack_element = self.stack.pop(-1)
-            # Get second element in stack
-            second_stack_element = self.stack[-1]
-            # Add dependency from second -> first
-            self.dependencies.append((second_stack_element, first_stack_element))
+            if len(self.stack) >= 2:
+                # Get first element in stack
+                first_stack_element = self.stack.pop(-1)
+                # Get second element in stack
+                second_stack_element = self.stack[-1]
+                # Add dependency from second -> first
+                self.dependencies.append((second_stack_element, first_stack_element))
 
         ### END YOUR CODE
 
