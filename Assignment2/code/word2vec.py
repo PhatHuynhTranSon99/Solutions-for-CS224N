@@ -19,6 +19,8 @@ def sigmoid(x):
 
     ### YOUR CODE HERE (~1 Line)
 
+    s = 1 / (1 + np.exp(-x))
+
     ### END YOUR CODE
 
     return s
@@ -64,6 +66,26 @@ def naiveSoftmaxLossAndGradient(
     ### Please use the provided softmax function (imported earlier in this file)
     ### This numerically stable implementation helps you avoid issues pertaining
     ### to integer overflow. 
+
+    ### Calclulate the loss
+    # first calculate the logits
+    logits = outsideVectors @ centerWordVec
+    # then pass logits in softmax function to calculate the 'distribution'
+    probs = softmax(logits)
+    # loss is equals to the value of outsidewordIx element of the probs
+    loss = - np.log(probs[outsideWordIdx])
+
+    ### Calculate the gradient w.r.t to center vector
+    # the formula is -u_o + Uxy_hat (x for matrix multiplication)
+    gradCenterVec = - outsideVectors[outsideWordIdx] + outsideVectors.T @ probs
+
+    ### Calculate the gradient w.r.t to outside vectors
+    # create a one-hot vector to denote the position of outsideWord
+    outsideWordPosition = np.zeros_like(probs)
+    outsideWordPosition[outsideWordIdx] = 1
+
+    # the formula for gradOutsideVecs is -v_c * (I{o} + probs)_Transpose
+    gradOutsideVecs = np.outer(probs - outsideWordPosition, centerWordVec)
 
     ### END YOUR CODE
 
