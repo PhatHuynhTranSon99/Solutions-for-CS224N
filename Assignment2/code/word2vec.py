@@ -105,10 +105,10 @@ def getNegativeSamples(outsideWordIdx, dataset, K):
 
 
 def negSamplingLossAndGradient(
-    centerWordVec,
-    outsideWordIdx,
-    outsideVectors,
-    dataset,
+    centerWordVec,      #v_c
+    outsideWordIdx,     # Index of o
+    outsideVectors,     # matrix U (number of word x word vector length)
+    dataset,            # Negative sampling dataset
     K=10
 ):
     """ Negative sampling loss function for word2vec models
@@ -131,6 +131,31 @@ def negSamplingLossAndGradient(
     indices = [outsideWordIdx] + negSampleWordIndices
 
     ### YOUR CODE HERE (~10 Lines)
+
+    # Symoolize into v_c, u_o, U for easier adherence to the formula
+    v_c = centerWordVec
+    u_o = outsideVectors[outsideWordIdx]
+
+    # get the outside vector negative sample 
+    negativeSampleVecs = outsideVectors[negSampleWordIndices]
+
+    # Calculate the loss
+    loss = -np.log( sigmoid( np.dot(u_o, v_c) ) ) - np.sum( np.log( sigmoid( - np.dot(negativeSampleVecs, v_c) )  ) )
+
+    # Calculate the gradient w.r.t v_c aka centerWordVec
+    gradCenterVec = - u_o * ( 1 - sigmoid( np.dot(u_o, v_c) ) ) + ( 1 - sigmoid( - np.dot(negativeSampleVecs, v_c) ) ) @ negativeSampleVecs
+
+    # Calculate the gradient w.r.t U aka outside vectors
+    gradOutsideVecs = np.zeros_like(outsideVectors)
+
+    # for u_o
+    gradOutsideVecs[outsideWordIdx] = - v_c * ( 1 - sigmoid( np.dot(u_o, v_c) ) )
+
+    # for u_k
+    # Count the index of each words in negative sample
+    for index in negSampleWordIndices:
+        u_k = outsideVectors[index]
+        gradOutsideVecs[index] = negSampleWordIndices.count(index) * ( v_c * ( 1 - sigmoid( - np.dot(u_k, v_c) ) ) )
 
     ### Please use your implementation of sigmoid in here.
 
