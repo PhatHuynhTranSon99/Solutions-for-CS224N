@@ -172,9 +172,9 @@ def skipgram(currentCenterWord, windowSize, outsideWords, word2Ind,
     Implement the skip-gram model in this function.
 
     Arguments:
-    currentCenterWord -- a string of the current center word
-    windowSize -- integer, context window size
-    outsideWords -- list of no more than 2*windowSize strings, the outside words
+    currentCenterWord -- a string of the current center word (c)
+    windowSize -- integer, context window size (m)
+    outsideWords -- list of no more than 2*windowSize strings, the outside words (strings containing outside words)
     word2Ind -- a dictionary that maps words to their indices in
               the word vector list
     centerWordVectors -- center word vectors (as rows) is in shape 
@@ -204,6 +204,18 @@ def skipgram(currentCenterWord, windowSize, outsideWords, word2Ind,
     gradOutsideVectors = np.zeros(outsideVectors.shape)
 
     ### YOUR CODE HERE (~8 Lines)
+
+    # get the centerWordVec
+    centerWordIdx = word2Ind[currentCenterWord]
+    centerWordVec = centerWordVectors[centerWordIdx]
+
+    # perform gradient decent on outside words
+    for outsideWord in outsideWords:
+        outsideWordIdx = word2Ind[outsideWord]
+        currentLoss, currentGradCenterVec, currentGradOutsideVecs = word2vecLossAndGradient(centerWordVec, outsideWordIdx, outsideVectors, dataset)
+        loss += currentLoss
+        gradCenterVecs[centerWordIdx] += currentGradCenterVec
+        gradOutsideVectors += currentGradOutsideVecs
 
     ### END YOUR CODE
     
