@@ -7,6 +7,7 @@ nmt_model.py: NMT Model
 Pencheng Yin <pcyin@cs.cmu.edu>
 Sahil Chopra <schopra8@stanford.edu>
 """
+# from _typeshed import StrOrBytesPath
 from collections import namedtuple
 import sys
 from typing import List, Tuple, Dict, Set, Union
@@ -321,6 +322,53 @@ class NMT(nn.Module):
         ###         https://pytorch.org/docs/stable/torch.html#torch.stack
 
 
+        # 1) Pass enc_hiddens to linear layer
+        # enc_hiddens (batch_size, sentence_length, hidden_size * 2)
+        # to get enc_hiddens_projs (batch_size, sentence_length, hidden_size)
+        enc_hiddens_proj = self.att_projection(enc_hiddens)
+
+        # 2) Get embeddings from target_padded
+        # target_padded (sentence_length, batch_size)
+        # to Y (sentence, batch_size, embedding_size)
+        Y = self.model_embeddings.target(target_padded)
+
+        # 3) Run the loop
+        # for timesteps in Y:
+        #   y = (1, batch_size, embedding_size)
+        #   reshape: y = (batch_size, embedding_size)
+        #   then concat with o_prev (batch_size, hidden_size) to get 
+        #   Ybar_t = (batch_size, embedding_size + hidden_size)
+        #   dec_state, o_t, e_t = step(Ybar_t, dec_state, enc_hiddens, enc_hiddens_proj, enc_masks)
+        #   Add o_t to combine_outputs []
+        #   Set o_prev = o_t
+
+        for y_t in torch.split(Y, split_size_or_sections=1):
+            # y_t (1, batch_size, embedding_size) -> (batch_size, embedding_size)
+            y_t = y_t.squeeze(0)
+
+            # concat with o_prev to get ybar_t
+            # ybar_t has size (batch_size, embedding_size + hidden_size)
+            ybar_t = torch.cat((y_t, o_prev), dim=1)
+
+            # calculate dec_state, o_t, e_t from step
+            dec_state, o_t, e_t = self.step(
+                ybar_t,
+                dec_state,
+                enc_hiddens,
+                enc_hiddens_proj,
+                enc_masks
+            )
+
+            # combine output
+            combined_outputs.append(o_t)
+
+            # set new o_prev
+            o_prev = o_t
+
+        # 4) combine_outputs = [(batch_size, hidden_size)] * sentence_length
+        #    to get combined_outputs = (sentence_length, batch_size, hidden_size)
+        combined_outputs = torch.stack(combined_outputs)
+
         ### END YOUR CODE
 
         return combined_outputs
@@ -476,7 +524,6 @@ class NMT(nn.Module):
         O_t = self.dropout(torch.tanh(v_t))
 
         ### END YOUR CODE
-
         combined_output = O_t
         return dec_state, combined_output, e_t
 
