@@ -82,7 +82,7 @@ class NMT(nn.Module):
 
         # Create decoder (Plain LSTM without Bias)
         self.decoder = nn.LSTM(
-            input_size=self.model_embeddings.embed_size,
+            input_size=self.model_embeddings.embed_size + self.hidden_size,
             hidden_size=self.hidden_size
         )
 
@@ -253,7 +253,6 @@ class NMT(nn.Module):
         dec_init_state = (init_decoder_hidden, init_decoder_cell)
 
         ### END YOUR CODE
-
         return enc_hiddens, dec_init_state
 
 
@@ -379,6 +378,42 @@ class NMT(nn.Module):
         ###     Tensor Squeeze:
         ###         https://pytorch.org/docs/stable/torch.html#torch.squeeze
 
+        # 1) Pass Ybar_t and (dec_hidden, dec_cell) to LSTM decoder
+        # to get dec_hidden_states (1, batch_size, hidden_size)
+        # final_dec_hidden (1, batch_size, hidden_size)
+        # final_dec_cell (1, batch_size, hidden_size)
+
+        # Extract and reshape dec_state
+        final_dec_hidden, final_dec_cell = dec_state
+        final_dec_hidden = final_dec_hidden.unsqueeze(0)
+        final_dec_cell = final_dec_cell.unsqueeze(0)
+
+        Ybar_t = Ybar_t.unsqueeze(0)
+
+        dec_hidden_states, (final_dec_hidden, final_dec_cell) = self.decoder(
+            Ybar_t,
+            (final_dec_hidden, final_dec_cell)
+        )
+
+        dec_state = (final_dec_hidden, final_dec_cell)
+
+        # 2) Flatten final_dec_hidden to get (batch_size, hidden_size)
+        # batch multiplication with enc_hidden_proj (batch_size, sentence_length, hidden_size)
+        # to get the score (batch_size, sentence_length)
+        
+        # final_dec_hidden has size (1, batch_size, hidden_size) -> (batch_size, hidden_size)
+        final_dec_hidden = final_dec_hidden.squeeze(0)
+
+        # squeeze to get (batch_size, hidden_size, 1)
+        final_dec_hidden_expanded = final_dec_hidden.unsqueeze(2)
+
+        # batch multiplication
+        # enc_hidden_proj (batch_size, sentence_length, hidden_size)
+        # final_dec_hidden (batch_size, hidden_size, 1)
+        # -> score e_t: (batch_size, sentence_length, 1)
+        # unsqueeze -> (batch_size, sentence_length)
+        e_t = torch.bmm(enc_hiddens_proj, final_dec_hidden_expanded)
+        e_t = e_t.squeeze(2)
 
         ### END YOUR CODE
 
@@ -414,6 +449,31 @@ class NMT(nn.Module):
         ###     Tanh:
         ###         https://pytorch.org/docs/stable/torch.html#torch.tanh
 
+        # 1) Apply softmax to e_t to produce alpha_t
+        # alpha_t has shape (batch_size, sentence_length)
+        alpha_t = F.softmax(e_t, dim=1)
+
+        # 2) Apply batch matrix multiplication
+        # between alpha_t has size (batch_size, 1, sentence_length)
+        # and enc_hidden has size (batch_size, sentence_length, hidden_size * 2)
+        # to get a_t (batch_size, 1, hidden_size * 2)
+        # unsqueeze to get(batch, hidden_size * 2)
+
+        alpha_t = alpha_t.unsqueeze(1)
+        a_t = torch.bmm(alpha_t, enc_hiddens)
+        a_t = a_t.squeeze(1)
+
+        # 3) Combine with final_dec_hidden (batch_size, hidden_size)
+        # and alpha (batch_size, hidden_size * 2)
+        # to get u_t (batch_size, hidden_size * 3)
+        u_t = torch.cat((a_t, final_dec_hidden), dim=1)
+
+        # 4) Apply w_v to get v_t
+        # having size (batch_size, hidden_size)
+        v_t = self.combined_output_projection(u_t)
+
+        # 4) Apply tanh and drop out to v_t to get o_t
+        O_t = self.dropout(torch.tanh(v_t))
 
         ### END YOUR CODE
 
