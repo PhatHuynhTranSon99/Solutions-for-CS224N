@@ -2,12 +2,11 @@
 # -*- coding: utf-8 -*-
 
 """
-CS224N 2020-21: Homework 4
+CS224N 2018-19: Homework 4
 model_embeddings.py: Embeddings for the NMT model
 Pencheng Yin <pcyin@cs.cmu.edu>
 Sahil Chopra <schopra8@stanford.edu>
 Anand Dhoot <anandd@stanford.edu>
-Vera Lin <veralin@stanford.edu>
 """
 
 import torch.nn as nn
@@ -52,7 +51,6 @@ class ModelEmbeddings(nn.Module):
         ###     Embedding Layer:
         ###         https://pytorch.org/docs/stable/nn.html#torch.nn.Embedding
         
-
 
         ### END YOUR CODE
 

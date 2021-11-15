@@ -2,11 +2,10 @@
 # -*- coding: utf-8 -*-
 
 """
-CS224N 2020-21: Homework 4
+CS224N 2018-19: Homework 4
 nmt_model.py: NMT Model
 Pencheng Yin <pcyin@cs.cmu.edu>
 Sahil Chopra <schopra8@stanford.edu>
-Vera Lin <veralin@stanford.edu>
 """
 from collections import namedtuple
 import sys
@@ -31,7 +30,7 @@ class NMT(nn.Module):
         """ Init NMT Model.
 
         @param embed_size (int): Embedding size (dimensionality)
-        @param hidden_size (int): Hidden Size, the size of hidden states (dimensionality)
+        @param hidden_size (int): Hidden Size (dimensionality)
         @param vocab (Vocab): Vocabulary object containing src and tgt languages
                               See vocab.py for documentation.
         @param dropout_rate (float): Dropout probability, for attention
@@ -51,9 +50,6 @@ class NMT(nn.Module):
         self.combined_output_projection = None
         self.target_vocab_projection = None
         self.dropout = None
-        # For sanity check only, not relevant to implementation
-        self.gen_sanity_check = False
-        self.counter = 0
 
 
         ### YOUR CODE HERE (~8 Lines)
@@ -76,8 +72,6 @@ class NMT(nn.Module):
         ###         https://pytorch.org/docs/stable/nn.html#torch.nn.Linear
         ###     Dropout Layer:
         ###         https://pytorch.org/docs/stable/nn.html#torch.nn.Dropout
-
-
 
 
         ### END YOUR CODE
@@ -145,7 +139,7 @@ class NMT(nn.Module):
         ###     2. Compute `enc_hiddens`, `last_hidden`, `last_cell` by applying the encoder to `X`.
         ###         - Before you can apply the encoder, you need to apply the `pack_padded_sequence` function to X.
         ###         - After you apply the encoder, you need to apply the `pad_packed_sequence` function to enc_hiddens.
-        ###         - Note that the shape of the tensor returned by the encoder is (src_len, b, h*2) and we want to
+        ###         - Note that the shape of the tensor returned by the encoder is (src_len b, h*2) and we want to
         ###           return a tensor of shape (b, src_len, h*2) as `enc_hiddens`.
         ###     3. Compute `dec_init_state` = (init_decoder_hidden, init_decoder_cell):
         ###         - `init_decoder_hidden`:
@@ -168,9 +162,6 @@ class NMT(nn.Module):
         ###         https://pytorch.org/docs/stable/torch.html#torch.cat
         ###     Tensor Permute:
         ###         https://pytorch.org/docs/stable/tensors.html#torch.Tensor.permute
-
-
-
 
 
         ### END YOUR CODE
@@ -217,7 +208,7 @@ class NMT(nn.Module):
         ###     3. Use the torch.split function to iterate over the time dimension of Y.
         ###         Within the loop, this will give you Y_t of shape (1, b, e) where b = batch size, e = embedding size.
         ###             - Squeeze Y_t into a tensor of dimension (b, e). 
-        ###             - Construct Ybar_t by concatenating Y_t with o_prev on their last dimension
+        ###             - Construct Ybar_t by concatenating Y_t with o_prev.
         ###             - Use the step function to compute the the Decoder's next (cell, state) values
         ###               as well as the new combined output o_t.
         ###             - Append o_t to combined_outputs
@@ -230,7 +221,7 @@ class NMT(nn.Module):
         ###    - When using the squeeze() function make sure to specify the dimension you want to squeeze
         ###      over. Otherwise, you will remove the batch dimension accidentally, if batch_size = 1.
         ###   
-        ### You may find some of these functions useful:
+        ### Use the following docs to implement this functionality:
         ###     Zeros Tensor:
         ###         https://pytorch.org/docs/stable/torch.html#torch.zeros
         ###     Tensor Splitting (iteration):
@@ -241,10 +232,6 @@ class NMT(nn.Module):
         ###         https://pytorch.org/docs/stable/torch.html#torch.cat
         ###     Tensor Stacking:
         ###         https://pytorch.org/docs/stable/torch.html#torch.stack
-
-
-
-
 
 
         ### END YOUR CODE
@@ -291,7 +278,7 @@ class NMT(nn.Module):
         ###       Hints:
         ###         - dec_hidden is shape (b, h) and corresponds to h^dec_t in the PDF (batched)
         ###         - enc_hiddens_proj is shape (b, src_len, h) and corresponds to W_{attProj} h^enc (batched).
-        ###         - Use batched matrix multiplication (torch.bmm) to compute e_t (be careful about the input/ output shapes!)
+        ###         - Use batched matrix multiplication (torch.bmm) to compute e_t.
         ###         - To get the tensors into the right shapes for bmm, you will need to do some squeezing and unsqueezing.
         ###         - When using the squeeze() function make sure to specify the dimension you want to squeeze
         ###             over. Otherwise, you will remove the batch dimension accidentally, if batch_size = 1.
@@ -305,13 +292,11 @@ class NMT(nn.Module):
         ###         https://pytorch.org/docs/stable/torch.html#torch.squeeze
 
 
-
-
         ### END YOUR CODE
 
         # Set e_t to -inf where enc_masks has 1
         if enc_masks is not None:
-            e_t.data.masked_fill_(enc_masks.bool(), -float('inf'))
+            e_t.data.masked_fill_(enc_masks.byte(), -float('inf'))
 
         ### YOUR CODE HERE (~6 Lines)
         ### TODO:
@@ -340,9 +325,6 @@ class NMT(nn.Module):
         ###         https://pytorch.org/docs/stable/torch.html#torch.cat
         ###     Tanh:
         ###         https://pytorch.org/docs/stable/torch.html#torch.tanh
-
-
-
 
 
         ### END YOUR CODE
@@ -417,7 +399,7 @@ class NMT(nn.Module):
             contiuating_hyp_scores = (hyp_scores.unsqueeze(1).expand_as(log_p_t) + log_p_t).view(-1)
             top_cand_hyp_scores, top_cand_hyp_pos = torch.topk(contiuating_hyp_scores, k=live_hyp_num)
 
-            prev_hyp_ids = top_cand_hyp_pos // len(self.vocab.tgt)
+            prev_hyp_ids = top_cand_hyp_pos / len(self.vocab.tgt)
             hyp_word_ids = top_cand_hyp_pos % len(self.vocab.tgt)
 
             new_hypotheses = []

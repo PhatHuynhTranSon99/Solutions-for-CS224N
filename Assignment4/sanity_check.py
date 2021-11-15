@@ -2,28 +2,28 @@
 # -*- coding: utf-8 -*-
 
 """
-CS224N 2019-20: Homework 4
+CS224N 2018-19: Homework 4
 sanity_check.py: sanity checks for assignment 4
 Sahil Chopra <schopra8@stanford.edu>
 Michael Hahn <>
-Vera Lin <veralin@stanford.edu>
-
-If you are a student, please don't run overwrite_output_for_sanity_check as it will overwrite the correct output!
 
 Usage:
     sanity_check.py 1d
     sanity_check.py 1e
     sanity_check.py 1f
-    sanity_check.py overwrite_output_for_sanity_check
+
 """
+import math
 import sys
+import pickle
+import time
 
 import numpy as np
 
 from docopt import docopt
-from utils import batch_iter
-import nltk
-# from utils import read_corpus
+from typing import List, Tuple, Dict, Set, Union
+from tqdm import tqdm
+from utils import read_corpus, batch_iter
 from vocab import Vocab, VocabEntry
 
 from nmt_model import NMT
@@ -63,8 +63,6 @@ def generate_outputs(model, source, target, vocab):
     print ("-"*80)
     print("Generating Comparison Outputs")
     reinitialize_layers(model)
-    model.gen_sanity_check = True
-    model.counter = 0
 
     # Compute sentence lengths
     source_lengths = [len(s) for s in source]
@@ -84,22 +82,7 @@ def generate_outputs(model, source, target, vocab):
     torch.save(dec_init_state, './sanity_check_en_es_data/dec_init_state.pkl') 
     torch.save(enc_masks, './sanity_check_en_es_data/enc_masks.pkl')
     torch.save(combined_outputs, './sanity_check_en_es_data/combined_outputs.pkl')
-    torch.save(target_padded, './sanity_check_en_es_data/target_padded.pkl')
 
-    # 1f
-    # Inputs
-    Ybar_t = torch.load('./sanity_check_en_es_data/Ybar_t.pkl')
-    enc_hiddens_proj = torch.load('./sanity_check_en_es_data/enc_hiddens_proj.pkl')
-    reinitialize_layers(model)
-    # Run Tests
-    with torch.no_grad():
-        dec_state_target, o_t_target, e_t_target = model.step(Ybar_t, dec_init_state, enc_hiddens, enc_hiddens_proj,
-                                                        enc_masks)
-    torch.save(dec_state_target, './sanity_check_en_es_data/dec_state.pkl')
-    torch.save(o_t_target, './sanity_check_en_es_data/o_t.pkl')
-    torch.save(e_t_target, './sanity_check_en_es_data/e_t.pkl')
-
-    model.gen_sanity_check = False
 
 def question_1d_sanity_check(model, src_sents, tgt_sents, vocab):
     """ Sanity check for question 1d. 
@@ -120,13 +103,10 @@ def question_1d_sanity_check(model, src_sents, tgt_sents, vocab):
     # Test
     with torch.no_grad():
         enc_hiddens_pred, dec_init_state_pred = model.encode(source_padded, source_lengths)
-    assert(enc_hiddens_target.shape == enc_hiddens_pred.shape), "enc_hiddens shape is incorrect: it should be:\n {} but is:\n{}".format(enc_hiddens_target.shape, enc_hiddens_pred.shape)
     assert(np.allclose(enc_hiddens_target.numpy(), enc_hiddens_pred.numpy())), "enc_hiddens is incorrect: it should be:\n {} but is:\n{}".format(enc_hiddens_target, enc_hiddens_pred)
     print("enc_hiddens Sanity Checks Passed!")
-    assert(dec_init_state_target[0].shape == dec_init_state_pred[0].shape), "dec_init_state[0] shape is incorrect: it should be:\n {} but is:\n{}".format(dec_init_state_target[0].shape, dec_init_state_pred[0].shape)
     assert(np.allclose(dec_init_state_target[0].numpy(), dec_init_state_pred[0].numpy())), "dec_init_state[0] is incorrect: it should be:\n {} but is:\n{}".format(dec_init_state_target[0], dec_init_state_pred[0])
     print("dec_init_state[0] Sanity Checks Passed!")
-    assert(dec_init_state_target[1].shape == dec_init_state_pred[1].shape), "dec_init_state[1] shape is incorrect: it should be:\n {} but is:\n{}".format(dec_init_state_target[1].shape, dec_init_state_pred[1].shape) 
     assert(np.allclose(dec_init_state_target[1].numpy(), dec_init_state_pred[1].numpy())), "dec_init_state[1] is incorrect: it should be:\n {} but is:\n{}".format(dec_init_state_target[1], dec_init_state_pred[1])
     print("dec_init_state[1] Sanity Checks Passed!")
     print ("-"*80)
@@ -150,7 +130,6 @@ def question_1e_sanity_check(model, src_sents, tgt_sents, vocab):
 
     # Load Outputs
     combined_outputs_target = torch.load('./sanity_check_en_es_data/combined_outputs.pkl')
-    print(combined_outputs_target.shape)
 
     # Configure for Testing
     reinitialize_layers(model)
@@ -165,7 +144,6 @@ def question_1e_sanity_check(model, src_sents, tgt_sents, vocab):
     # Run Tests
     with torch.no_grad():
         combined_outputs_pred = model.decode(enc_hiddens, enc_masks, dec_init_state, target_padded)
-    assert(combined_outputs_target.shape == combined_outputs_pred.shape), "combined_outputs shape is incorrect: it should be:\n {} but is:\n{}".format(combined_outputs_target.shape, combined_outputs_pred.shape)
     assert(np.allclose(combined_outputs_pred.numpy(), combined_outputs_target.numpy())), "combined_outputs is incorrect: it should be:\n {} but is:\n{}".format(combined_outputs_target, combined_outputs_pred)
     print("combined_outputs Sanity Checks Passed!")
     print ("-"*80)
@@ -196,10 +174,8 @@ def question_1f_sanity_check(model, src_sents, tgt_sents, vocab):
     # Run Tests
     with torch.no_grad():
         dec_state_pred, o_t_pred, e_t_pred= model.step(Ybar_t, dec_init_state, enc_hiddens, enc_hiddens_proj, enc_masks)
-    assert(dec_state_target[0].shape == dec_state_pred[0].shape), "decoder_state[0] shape is incorrect: it should be:\n {} but is:\n{}".format(dec_state_target[0].shape, dec_state_pred[0].shape)
     assert(np.allclose(dec_state_target[0].numpy(), dec_state_pred[0].numpy())), "decoder_state[0] is incorrect: it should be:\n {} but is:\n{}".format(dec_state_target[0], dec_state_pred[0])
     print("dec_state[0] Sanity Checks Passed!")
-    assert(dec_state_target[1].shape == dec_state_pred[1].shape), "decoder_state[1] shape is incorrect: it should be:\n {} but is:\n{}".format(dec_state_target[1].shape, dec_state_pred[1].shape)
     assert(np.allclose(dec_state_target[1].numpy(), dec_state_pred[1].numpy())), "decoder_state[1] is incorrect: it should be:\n {} but is:\n{}".format(dec_state_target[1], dec_state_pred[1])
     print("dec_state[1] Sanity Checks Passed!")
     assert(np.allclose(o_t_target.numpy(), o_t_pred.numpy())), "combined_output is incorrect: it should be:\n {} but is:\n{}".format(o_t_target, o_t_pred)
@@ -211,23 +187,6 @@ def question_1f_sanity_check(model, src_sents, tgt_sents, vocab):
     print ("-"*80)
 
 
-def sanity_read_corpus(file_path, source):
-    """ Read file, where each sentence is dilineated by a `\n`.
-    @param file_path (str): path to file containing corpus
-    @param source (str): "tgt" or "src" indicating whether text
-        is of the source language or target language
-    """
-    data = []
-    for line in open(file_path):
-        sent = nltk.word_tokenize(line)
-        # only append <s> and </s> to the target sentence
-        if source == 'tgt':
-            sent = ['<s>'] + sent + ['</s>']
-        data.append(sent)
-
-    return data
-
-
 def main():
     """ Main func.
     """
@@ -235,7 +194,7 @@ def main():
 
     # Check Python & PyTorch Versions
     assert (sys.version_info >= (3, 5)), "Please update your installation of Python to version >= 3.5"
-    assert(torch.__version__ >= "1.0.0"), "Please update your installation of PyTorch. You have {} and you should have version 1.0.0".format(torch.__version__)
+    assert(torch.__version__ == "1.0.0"), "Please update your installation of PyTorch. You have {} and you should have version 1.0.0".format(torch.__version__)
 
     # Seed the Random Number Generators
     seed = 1234
@@ -244,8 +203,8 @@ def main():
     np.random.seed(seed * 13 // 7)
 
     # Load training data & vocabulary
-    train_data_src = sanity_read_corpus('./sanity_check_en_es_data/train_sanity_check.es', 'src')
-    train_data_tgt = sanity_read_corpus('./sanity_check_en_es_data/train_sanity_check.en', 'tgt')
+    train_data_src = read_corpus('./sanity_check_en_es_data/train_sanity_check.es', 'src')
+    train_data_tgt = read_corpus('./sanity_check_en_es_data/train_sanity_check.en', 'tgt')
     train_data = list(zip(train_data_src, train_data_tgt))
 
     for src_sents, tgt_sents in batch_iter(train_data, batch_size=BATCH_SIZE, shuffle=True):
@@ -266,9 +225,8 @@ def main():
     elif args['1e']:
         question_1e_sanity_check(model, src_sents, tgt_sents, vocab)
     elif args['1f']:
+       # generate_outputs(model, src_sents, tgt_sents, vocab)
         question_1f_sanity_check(model, src_sents, tgt_sents, vocab)
-    elif args['overwrite_output_for_sanity_check']:
-        generate_outputs(model, src_sents, tgt_sents, vocab)
     else:
         raise RuntimeError('invalid run mode')
 

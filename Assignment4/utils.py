@@ -2,11 +2,10 @@
 # -*- coding: utf-8 -*-
 
 """
-CS224N 2020-21: Homework 4
+CS224N 2018-19: Homework 4
 nmt.py: NMT Model
 Pencheng Yin <pcyin@cs.cmu.edu>
 Sahil Chopra <schopra8@stanford.edu>
-Vera Lin <veralin@stanford.edu>
 """
 
 import math
@@ -16,14 +15,10 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import nltk
-import sentencepiece as spm
-nltk.download('punkt')
 
 
 def pad_sents(sents, pad_token):
     """ Pad list of sentences according to the longest sentence in the batch.
-        The paddings should be at the end of each sentence.
     @param sents (list[list[str]]): list of sentences, where each sentence
                                     is represented as a list of words
     @param pad_token (str): padding token
@@ -34,11 +29,8 @@ def pad_sents(sents, pad_token):
     sents_padded = []
 
     ### YOUR CODE HERE (~6 Lines)
-
-    # Find the length of longest sentence in the sents
     max_length = max([len(sent) for sent in sents])
 
-    # Add padding to every sentences
     for sent in sents:
         if len(sent) < max_length:
             sents_padded.append(sent + (max_length - len(sent)) * [pad_token])
@@ -50,30 +42,8 @@ def pad_sents(sents, pad_token):
     return sents_padded
 
 
-def read_corpus(file_path, source, vocab_size=2500):
-    """ Read file, where each sentence is dilineated by a `\n`.
-    @param file_path (str): path to file containing corpus
-    @param source (str): "tgt" or "src" indicating whether text
-        is of the source language or target language
-    @param vocab_size (int): number of unique subwords in
-        vocabulary when reading and tokenizing
-    """
-    data = []
-    sp = spm.SentencePieceProcessor()
-    sp.load('{}.model'.format(source))
 
-    with open(file_path, 'r', encoding='utf8') as f:
-        for line in f:
-            subword_tokens = sp.encode_as_pieces(line)
-            # only append <s> and </s> to the target sentence
-            if source == 'tgt':
-                subword_tokens = ['<s>'] + subword_tokens + ['</s>']
-            data.append(subword_tokens)
-
-    return data
-
-
-def autograder_read_corpus(file_path, source):
+def read_corpus(file_path, source):
     """ Read file, where each sentence is dilineated by a `\n`.
     @param file_path (str): path to file containing corpus
     @param source (str): "tgt" or "src" indicating whether text
@@ -81,7 +51,7 @@ def autograder_read_corpus(file_path, source):
     """
     data = []
     for line in open(file_path):
-        sent = nltk.word_tokenize(line)
+        sent = line.strip().split(' ')
         # only append <s> and </s> to the target sentence
         if source == 'tgt':
             sent = ['<s>'] + sent + ['</s>']

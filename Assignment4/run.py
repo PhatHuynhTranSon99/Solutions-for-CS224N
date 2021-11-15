@@ -2,11 +2,10 @@
 # -*- coding: utf-8 -*-
 
 """
-CS224N 2020-21: Homework 4
+CS224N 2018-19: Homework 4
 run.py: Run Script for Simple NMT Model
 Pencheng Yin <pcyin@cs.cmu.edu>
 Sahil Chopra <schopra8@stanford.edu>
-Vera Lin <veralin@stanford.edu>
 
 Usage:
     run.py train --train-src=<file> --train-tgt=<file> --dev-src=<file> --dev-tgt=<file> --vocab=<file> [options]
@@ -48,8 +47,7 @@ import time
 
 
 from docopt import docopt
-# from nltk.translate.bleu_score import corpus_bleu, sentence_bleu, SmoothingFunction
-import sacrebleu
+from nltk.translate.bleu_score import corpus_bleu, sentence_bleu, SmoothingFunction
 from nmt_model import Hypothesis, NMT
 import numpy as np
 from typing import List, Tuple, Dict, Set, Union
@@ -97,29 +95,22 @@ def compute_corpus_level_bleu_score(references: List[List[str]], hypotheses: Lis
     @param hypotheses (List[Hypothesis]): a list of hypotheses, one for each reference
     @returns bleu_score: corpus-level BLEU score
     """
-    # remove the start and end tokens
     if references[0][0] == '<s>':
         references = [ref[1:-1] for ref in references]
-    
-    # detokenize the subword pieces to get full sentences
-    detokened_refs = [''.join(pieces).replace('▁', ' ') for pieces in references]
-    detokened_hyps = [''.join(hyp.value).replace('▁', ' ') for hyp in hypotheses]
-
-    # sacreBLEU can take multiple references (golden example per sentence) but we only feed it one
-    bleu = sacrebleu.corpus_bleu(detokened_hyps, [detokened_refs])
-
-    return bleu.score
+    bleu_score = corpus_bleu([[ref] for ref in references],
+                             [hyp.value for hyp in hypotheses])
+    return bleu_score
 
 
 def train(args: Dict):
     """ Train the NMT Model.
     @param args (Dict): args from cmd line
     """
-    train_data_src = read_corpus(args['--train-src'], source='src', vocab_size=21000)       
-    train_data_tgt = read_corpus(args['--train-tgt'], source='tgt', vocab_size=8000)
+    train_data_src = read_corpus(args['--train-src'], source='src')
+    train_data_tgt = read_corpus(args['--train-tgt'], source='tgt')
 
-    dev_data_src = read_corpus(args['--dev-src'], source='src', vocab_size=3000)
-    dev_data_tgt = read_corpus(args['--dev-tgt'], source='tgt', vocab_size=2000)
+    dev_data_src = read_corpus(args['--dev-src'], source='src')
+    dev_data_tgt = read_corpus(args['--dev-tgt'], source='tgt')
 
     train_data = list(zip(train_data_src, train_data_tgt))
     dev_data = list(zip(dev_data_src, dev_data_tgt))
@@ -132,17 +123,10 @@ def train(args: Dict):
 
     vocab = Vocab.load(args['--vocab'])
 
-    # model = NMT(embed_size=int(args['--embed-size']),                                 
-    #             hidden_size=int(args['--hidden-size']),
-    #             dropout_rate=float(args['--dropout']),
-    #             vocab=vocab)
-
-    model = NMT(embed_size=1024,
-                hidden_size=1024,
+    model = NMT(embed_size=int(args['--embed-size']),
+                hidden_size=int(args['--hidden-size']),
                 dropout_rate=float(args['--dropout']),
                 vocab=vocab)
-    
-
     model.train()
 
     uniform_init = float(args['--uniform-init'])
@@ -282,10 +266,10 @@ def decode(args: Dict[str, str]):
     """
 
     print("load test source sentences from [{}]".format(args['TEST_SOURCE_FILE']), file=sys.stderr)
-    test_data_src = read_corpus(args['TEST_SOURCE_FILE'], source='src', vocab_size=3000)
+    test_data_src = read_corpus(args['TEST_SOURCE_FILE'], source='src')
     if args['TEST_TARGET_FILE']:
         print("load test target sentences from [{}]".format(args['TEST_TARGET_FILE']), file=sys.stderr)
-        test_data_tgt = read_corpus(args['TEST_TARGET_FILE'], source='tgt', vocab_size=2000)
+        test_data_tgt = read_corpus(args['TEST_TARGET_FILE'], source='tgt')
 
     print("load model from {}".format(args['MODEL_PATH']), file=sys.stderr)
     model = NMT.load(args['MODEL_PATH'])
@@ -294,19 +278,18 @@ def decode(args: Dict[str, str]):
         model = model.to(torch.device("cuda:0"))
 
     hypotheses = beam_search(model, test_data_src,
-                            #  beam_size=int(args['--beam-size']),                      
-                             beam_size=10,
+                             beam_size=int(args['--beam-size']),
                              max_decoding_time_step=int(args['--max-decoding-time-step']))
 
     if args['TEST_TARGET_FILE']:
         top_hypotheses = [hyps[0] for hyps in hypotheses]
         bleu_score = compute_corpus_level_bleu_score(test_data_tgt, top_hypotheses)
-        print('Corpus BLEU: {}'.format(bleu_score), file=sys.stderr)
+        print('Corpus BLEU: {}'.format(bleu_score * 100), file=sys.stderr)
 
     with open(args['OUTPUT_FILE'], 'w') as f:
         for src_sent, hyps in zip(test_data_src, hypotheses):
             top_hyp = hyps[0]
-            hyp_sent = ''.join(top_hyp.value).replace('▁', ' ')
+            hyp_sent = ' '.join(top_hyp.value)
             f.write(hyp_sent + '\n')
 
 
@@ -339,7 +322,7 @@ def main():
     args = docopt(__doc__)
 
     # Check pytorch version
-    assert(torch.__version__ >= "1.0.0"), "Please update your installation of PyTorch. You have {} and you should have version 1.0.0".format(torch.__version__)
+    assert(torch.__version__ == "1.0.0"), "Please update your installation of PyTorch. You have {} and you should have version 1.0.0".format(torch.__version__)
 
     # seed the random number generators
     seed = int(args['--seed'])
