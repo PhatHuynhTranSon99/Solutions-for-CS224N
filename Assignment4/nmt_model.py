@@ -77,15 +77,13 @@ class NMT(nn.Module):
         self.encoder = nn.LSTM(
             input_size=self.model_embeddings.embed_size,
             hidden_size=self.hidden_size,
-            bidirectional=True,
-            batch_first=True
+            bidirectional=True
         )
 
         # Create decoder (Plain LSTM without Bias)
         self.decoder = nn.LSTM(
             input_size=self.model_embeddings.embed_size,
-            hidden_size=self.hidden_size,
-            batch_first=True
+            hidden_size=self.hidden_size
         )
 
         # Create h projection linear layer
@@ -119,7 +117,7 @@ class NMT(nn.Module):
         # Create target vocab projection
         self.target_vocab_projection = nn.Linear(
             in_features=self.hidden_size,
-            out_features=len(self.vocab["tgt"]),
+            out_features=len(self.vocab.tgt),
             bias=False # No bias
         )
 
@@ -217,6 +215,42 @@ class NMT(nn.Module):
         ###     Tensor Permute:
         ###         https://pytorch.org/docs/stable/tensors.html#torch.Tensor.permute
 
+        # 1) Pass source_padded through encoding layers to get X
+        # source_padded has size (sentence_length, batch_size)
+        # X has size (sentence_length, batch_size, embedding_size)
+        X = self.model_embeddings.source(source_padded)
+
+        # 2) calculate hidden_sizes, final_hidden_sizes, final_cell_sizes by applying LSTM on X
+        # hidden_sizes has size (sentence_length, batch_size, 2 * hidden_size) since bidirectional is True
+        # final_hidden_states has size (2, batch_size, hidden_size) as bidirectional is True
+        # final_cell_states has size (2, batch_size, hidden_size) as bidirectional is True
+
+        # Do this to speed up computation
+        X_pack_padded = pack_padded_sequence(X, source_lengths)
+
+        # Run through LSTM
+        enc_hiddens, (final_hidden_states, final_cell_states) = self.encoder(X_pack_padded) # No initial hidden or cell states
+        # Pad packed sequence to get the hidden_states back to correct dimensions
+        enc_hiddens, _ = pad_packed_sequence(enc_hiddens) # The lengths are also returned
+        # Permute to get the right dimension
+        enc_hiddens = torch.transpose(enc_hiddens, 0, 1)
+
+        # 3) Concatenate the bidirectional final_hidden_states and final_cell_states into one dec_hidden_states
+        # final_hidden_states (2, b, h) to concatenated_decoder_hidden (b, 2 * h)
+        # final_cell_states (2, b, h) to concatenated_decoder_cell (b, 2 * h)
+        
+        # Concatenate
+        concatenated_decoder_hidden = torch.cat((final_hidden_states[0], final_hidden_states[1]), dim=1)
+        concatenated_decoder_cell = torch.cat((final_cell_states[0], final_cell_states[1]), dim=1)
+
+        # 4) Appy projection on concatenated_decoder_hidden and concatenated_decoder_cell
+        # concatenated_decoder_hidden (b, 2 * h) -> init_decoder_hidden (b, h)
+        # concatenated_deocder_cell (b, 2 * h) -> init_decoder_cell (b, h)
+        init_decoder_hidden = self.h_projection(concatenated_decoder_hidden)
+        init_decoder_cell = self.h_projection(concatenated_decoder_cell)
+
+        # Group into tuple
+        dec_init_state = (init_decoder_hidden, init_decoder_cell)
 
         ### END YOUR CODE
 

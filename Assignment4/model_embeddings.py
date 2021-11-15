@@ -61,7 +61,7 @@ class ModelEmbeddings(nn.Module):
         self.target = nn.Embedding(
             num_embeddings=len(vocab.tgt),
             embedding_dim=embed_size,
-            padding_ids=tgt_pad_token_idx # Avoid gradient on padding
+            padding_idx=tgt_pad_token_idx # Avoid gradient on padding
         )
 
         ### END YOUR CODE
