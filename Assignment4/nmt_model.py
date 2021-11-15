@@ -73,6 +73,60 @@ class NMT(nn.Module):
         ###     Dropout Layer:
         ###         https://pytorch.org/docs/stable/nn.html#torch.nn.Dropout
 
+        # Create encoder (Bidirectional with Bias)
+        self.encoder = nn.LSTM(
+            input_size=self.model_embeddings.embed_size,
+            hidden_size=self.hidden_size,
+            bidirectional=True,
+            batch_first=True
+        )
+
+        # Create decoder (Plain LSTM without Bias)
+        self.decoder = nn.LSTM(
+            input_size=self.model_embeddings.embed_size,
+            hidden_size=self.hidden_size,
+            batch_first=True
+        )
+
+        # Create h projection linear layer
+        self.h_projection = nn.Linear(
+            in_features=self.hidden_size * 2,
+            out_features=self.hidden_size,
+            bias=False # No bias
+        )
+
+        # Create c projection linear layer
+        self.c_projection = nn.Linear(
+            in_features=self.hidden_size * 2,
+            out_features=self.hidden_size,
+            bias=False # No bias
+        )
+
+        # Create attention linear layer
+        self.att_projection = nn.Linear(
+            in_features=self.hidden_size * 2,
+            out_features=self.hidden_size,
+            bias=False # No bias
+        )
+
+        # Create combined output linear layer
+        self.combined_output_projection = nn.Linear(
+            in_features=self.hidden_size * 3,
+            out_features=self.hidden_size,
+            bias=False # No bias
+        )
+
+        # Create target vocab projection
+        self.target_vocab_projection = nn.Linear(
+            in_features=self.hidden_size,
+            out_features=len(self.vocab["tgt"]),
+            bias=False # No bias
+        )
+
+        # Create dropout layer
+        self.dropout = nn.Dropout(
+            p=self.dropout_rate
+        )
 
         ### END YOUR CODE
 
