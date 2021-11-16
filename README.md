@@ -5,9 +5,9 @@ This repository contains all the code solutions that I have created for Standfor
 
 ## Assignment list
 - [ ] Assignment 1: Word embedding overview
-- [ ] Assignment 2: Word2Vec implementation (using negative sampling)
-- [ ] Assignment 3: Neural Dependency parsing 
-- [ ] Assignment 4: To Be Addded
+- [x] Assignment 2: Word2Vec implementation (using negative sampling)
+- [x] Assignment 3: Neural Dependency parsing 
+- [x] Assignment 4: Neural Machine Translation
 - [ ] Assignment 5: To Be Added
 
 ## Notes
