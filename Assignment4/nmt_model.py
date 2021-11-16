@@ -433,8 +433,10 @@ class NMT(nn.Module):
 
         # Extract and reshape dec_state
         final_dec_hidden, final_dec_cell = dec_state
-        final_dec_hidden = final_dec_hidden.unsqueeze(0)
-        final_dec_cell = final_dec_cell.unsqueeze(0)
+
+        if len(list(final_dec_hidden.shape)) < 3:
+            final_dec_hidden = final_dec_hidden.unsqueeze(0)
+            final_dec_cell = final_dec_cell.unsqueeze(0)
 
         Ybar_t = Ybar_t.unsqueeze(0)
 
