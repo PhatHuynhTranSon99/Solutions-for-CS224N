@@ -433,11 +433,8 @@ class NMT(nn.Module):
 
         # Extract and reshape dec_state
         final_dec_hidden, final_dec_cell = dec_state
-
-        if len(list(final_dec_hidden.shape)) < 3:
-            final_dec_hidden = final_dec_hidden.unsqueeze(0)
-            final_dec_cell = final_dec_cell.unsqueeze(0)
-
+        final_dec_hidden = final_dec_hidden.unsqueeze(0)
+        final_dec_cell = final_dec_cell.unsqueeze(0)
         Ybar_t = Ybar_t.unsqueeze(0)
 
         dec_hidden_states, (final_dec_hidden, final_dec_cell) = self.decoder(
@@ -445,7 +442,12 @@ class NMT(nn.Module):
             (final_dec_hidden, final_dec_cell)
         )
 
-        dec_state = (final_dec_hidden, final_dec_cell)
+        # final_dec_hidden now has size (1, batch_size, hidden_size)
+        # final_dec_cell now has size (1, batch_size, hidden_size)
+        # -> Squeeze 
+        final_dec_cell_new = final_dec_cell.squeeze(0)
+        final_dec_hidden_new = final_dec_hidden.squeeze(0)
+        dec_state = (final_dec_hidden_new, final_dec_cell_new)
 
         # 2) Flatten final_dec_hidden to get (batch_size, hidden_size)
         # batch multiplication with enc_hidden_proj (batch_size, sentence_length, hidden_size)
